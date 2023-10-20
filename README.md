@@ -104,6 +104,96 @@ Out-of-the-box, you can upload the following file types:
     
     ![A screenshot of the chat app.](./media/chat-app.png)
 
+## Develoy with Azure Developer CLI
+Then bring down the project code:
+
+1. Create a new folder and switch to it in the terminal
+1. Run `azd auth login`
+1. Run `azd init -t azure-search-openai-demo`
+    * note that this command will initialize a git repository and you do not need to clone this repository
+
+### Deploying from scratch
+
+Execute the following command, if you don't have any pre-existing Azure services and want to start from a fresh deployment.
+
+1. Run `azd up` - This will provision Azure resources and deploy this sample to those resources, including building the search index based on the files found in the `./data` folder.
+    * **Important**: Beware that the resources created by this command will incur immediate costs, primarily from the Cognitive Search resource. These resources may accrue costs even if you interrupt the command before it is fully executed. You can run `azd down` or delete the resources manually to avoid unnecessary spending.
+    * You will be prompted to select two locations, one for the majority of resources and one for the OpenAI resource, which is currently a short list. That location list is based on the [OpenAI model availability table](https://learn.microsoft.com/azure/cognitive-services/openai/concepts/models#model-summary-table-and-region-availability) and may become outdated as availability changes.
+1. After the application has been successfully deployed you will see a URL printed to the console.  Click that URL to interact with the application in your browser.
+It will look like the following:
+
+!['Output from running azd up'](docs/endpoint.png)
+
+> NOTE: It may take 5-10 minutes for the application to be fully deployed. If you see a "Python Developer" welcome screen or an error page, then wait a bit and refresh the page.
+
+### Deploying with existing Azure resources
+
+If you already have existing Azure resources, you can re-use those by setting `azd` environment values.
+
+#### Existing resource group
+
+1. Run `azd env set AZURE_RESOURCE_GROUP {Name of existing resource group}`
+1. Run `azd env set AZURE_LOCATION {Location of existing resource group}`
+
+#### Existing OpenAI resource
+
+##### Azure OpenAI:
+
+1. Run `azd env set AZURE_OPENAI_SERVICE {Name of existing OpenAI service}`
+1. Run `azd env set AZURE_OPENAI_RESOURCE_GROUP {Name of existing resource group that OpenAI service is provisioned to}`
+1. Run `azd env set AZURE_OPENAI_CHATGPT_DEPLOYMENT {Name of existing ChatGPT deployment}`. Only needed if your ChatGPT deployment is not the default 'chat'.
+1. Run `azd env set AZURE_OPENAI_EMB_DEPLOYMENT {Name of existing GPT embedding deployment}`. Only needed if your embeddings deployment is not the default 'embedding'.
+
+When you run `azd up` after and are prompted to select a value for `openAiResourceGroupLocation`, make sure to select the same location as the existing OpenAI resource group.
+
+##### Openai.com OpenAI:
+
+1. Run `azd env set OPENAI_HOST openai`
+2. Run `azd env set OPENAI_ORGANIZATION {Your OpenAI organization}`
+3. Run `azd env set OPENAI_API_KEY {Your OpenAI API key}`
+4. Run `azd up`
+
+You can retrieve your OpenAI key by checking [your user page](https://platform.openai.com/account/api-keys) and your organization by navigating to [your organization page](https://platform.openai.com/account/org-settings).
+Learn more about creating an OpenAI free trial at [this link](https://openai.com/pricing).
+Do *not* check your key into source control.
+
+When you run `azd up` after and are prompted to select a value for `openAiResourceGroupLocation`, you can select any location as it will not be used.
+
+
+#### Existing Azure Cognitive Search resource
+
+1. Run `azd env set AZURE_SEARCH_SERVICE {Name of existing Azure Cognitive Search service}`
+1. Run `azd env set AZURE_SEARCH_SERVICE_RESOURCE_GROUP {Name of existing resource group with ACS service}`
+1. If that resource group is in a different location than the one you'll pick for the `azd up` step,
+  then run `azd env set AZURE_SEARCH_SERVICE_LOCATION {Location of existing service}`
+1. If the search service's SKU is not standard, then run `azd env set AZURE_SEARCH_SERVICE_SKU {Name of SKU}`. The free tier won't work as it doesn't support managed identity. ([See other possible values](https://learn.microsoft.com/azure/templates/microsoft.search/searchservices?pivots=deployment-language-bicep#sku))
+1. If you have an existing index that is set up with all the expected fields, then run `azd env set AZURE_SEARCH_INDEX {Name of existing index}`. Otherwise, the `azd up` command will create a new index.
+
+You can also customize the search service (new or existing) for non-English searches:
+
+1. To configure the language of the search query to a value other than "en-us", run `azd env set AZURE_SEARCH_QUERY_LANGUAGE {Name of query language}`. ([See other possible values](https://learn.microsoft.com/python/api/azure-search-documents/azure.search.documents.models.querylanguage?view=azure-python-preview))
+1. To turn off the spell checker, run `azd env set AZURE_SEARCH_QUERY_SPELLER none`. ([See other possible values](https://learn.microsoft.com/python/api/azure-search-documents/azure.search.documents.models.queryspellertype?view=azure-python-preview))
+1. To configure the name of the analyzer to use for a searchable text field to a value other than "en.microsoft", run `azd env set AZURE_SEARCH_ANALYZER_NAME {Name of analyzer name}`. ([See other possible values](https://learn.microsoft.com/dotnet/api/microsoft.azure.search.models.field.analyzer?view=azure-dotnet-legacy&viewFallbackFrom=azure-dotnet))
+
+#### Other existing Azure resources
+
+You can also use existing Form Recognizer and Storage Accounts. See `./infra/main.parameters.json` for list of environment variables to pass to `azd env set` to configure those existing resources.
+
+#### Provision remaining resources
+
+Now you can run `azd up`, following the steps in [Deploying from scratch](#deploying-from-scratch) above.
+That will both provision resources and deploy the code.
+
+
+### Deploying again
+
+If you've only changed the backend/frontend code in the `app` folder, then you don't need to re-provision the Azure resources. You can just run:
+
+```azd deploy```
+
+If you've changed the infrastructure files (`infra` folder or `azure.yaml`), then you'll need to re-provision the Azure resources. You can do that by running:
+
+```azd up```
 
 ## Development and run the accelerator locally
 
