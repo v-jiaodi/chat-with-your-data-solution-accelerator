@@ -10,8 +10,8 @@ param environmentName string
 param location string
 
 param appServicePlanName string = ''
-param backendServiceName string = ''
-param frontendServiceName string = ''
+// param backendServiceName string = ''
+// param frontendServiceName string = ''
 param resourceGroupName string = ''
 param AzureOpenAIApiVersion string = '2023-07-01-preview'
 // param WebAppImageName string = 'DOCKER|fruoccopublic.azurecr.io/rag-webapp'
@@ -23,6 +23,9 @@ param AzureOpenAIApiVersion string = '2023-07-01-preview'
 param containerAppsEnvironmentName string = ''
 param containerRegistryName string = ''
 param logAnalyticsName string = ''
+param keyVaultName string = ''
+param webAdminAppExists bool = false
+param webAdminContainerAppName string = ''
 
 param applicationInsightsName string = ''
 param eventgridName string = 'doc-processing'
@@ -36,8 +39,8 @@ param searchServiceLocation string = ''
 @allowed(['basic', 'standard', 'standard2', 'standard3', 'storage_optimized_l1', 'storage_optimized_l2'])
 param searchServiceSkuName string // Set in main.parameters.json
 param searchIndexName string  = '${environmentName}-index'// Set in main.parameters.json
-param searchQueryLanguage string // Set in main.parameters.json
-param searchQuerySpeller string // Set in main.parameters.json
+// param searchQueryLanguage string // Set in main.parameters.json
+// param searchQuerySpeller string // Set in main.parameters.json
 
 param storageAccountName string = ''
 param storageResourceGroupName string = ''
@@ -83,20 +86,20 @@ param embeddingDeploymentCapacity int = 30
 param embeddingModelName string = 'text-embedding-ada-002'
 
 // Used for the optional login and document level access control system
-param useAuthentication bool = false
-param serverAppId string = ''
+// param useAuthentication bool = false
+// param serverAppId string = ''
 @secure()
-param serverAppSecret string = ''
-param clientAppId string = ''
+// param serverAppSecret string = ''
+// param clientAppId string = ''
 
 // Used for optional CORS support for alternate frontends
-param allowedOrigin string = '' // should start with https://, shouldn't end with a /
+// param allowedOrigin string = '' // should start with https://, shouldn't end with a /
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
 
 @description('Use Application Insights for monitoring and performance tracing')
-param useApplicationInsights bool = true
+// param useApplicationInsights bool = true
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -157,7 +160,7 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
   }
 }
 
-// The application backend
+// The webAdmin 
 // module backend 'core/host/appservice.bicep' = {
 //   name: 'api'
 //   scope: resourceGroup
@@ -240,83 +243,83 @@ module appServicePlan 'core/host/appserviceplan.bicep' = {
 //   ]
 // }
 
-// The application frontend
-module frontend 'core/host/appservice.bicep' = {
-  name: '${environmentName}-website'
-  scope: resourceGroup
-  params: {
-    name: !empty(frontendServiceName) ? frontendServiceName : '${abbrs.webSitesAppService}frontend-${resourceToken}'
-    location: location
-    tags: union(tags, { 'azd-service-name': 'frontend' })
-    appServicePlanId: appServicePlan.outputs.id
-    runtimeName: 'node'
-    runtimeVersion: '18-lts'
-    // linuxFxVersion:WebAppImageName
-    scmDoBuildDuringDeployment: true
-    managedIdentity: true
-    allowedOrigins: [allowedOrigin]
-    AzureCognitiveSearch:searchService.outputs.name
-    formRecognizerName:formRecognizer.outputs.name
-    ContentSafetyName:contentSafety.outputs.name
-    storageAccountName:storage.outputs.name
-    openAiName:openAi.outputs.name
-    appSettings: {
-      APPINSIGHTS_CONNECTION_STRING: monitoring.outputs.applicationInsightsConnectionString
-      AZURE_STORAGE_ACCOUNT: storage.outputs.name
-      AZURE_STORAGE_CONTAINER: storageContainerName
-      AZURE_SEARCH_INDEX: searchIndexName
-      AZURE_SEARCH_CONVERSATIONS_LOG_INDEX: 'conversations'
-      AZURE_SEARCH_USE_SEMANTIC_SEARCH : 'false'
-      AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG : 'default'
-      AZURE_SEARCH_INDEX_IS_PRECHUNKED : 'false'
-      AZURE_SEARCH_TOP_K : '5'
-      AZURE_SEARCH_ENABLE_IN_DOMAIN : 'false'
-      AZURE_SEARCH_CONTENT_COLUMNS : 'content'
-      AZURE_SEARCH_FILENAME_COLUMN : 'filename'
-      AZURE_SEARCH_TITLE_COLUMN : 'title'
-      AZURE_SEARCH_URL_COLUMN : 'url'
-      AZURE_OPENAI_RESOURCE : openAiHost == 'azure' ? openAi.outputs.name : ''
-      AZURE_OPENAI_KEY : openAiApiKey
-      AZURE_OPENAI_MODEL : chatGptModelName
-      AZURE_OPENAI_MODEL_NAME : chatGptModelName
-      AZURE_OPENAI_TEMPERATURE : '0'
-      AZURE_OPENAI_TOP_P: '1'
-      AZURE_OPENAI_MAX_TOKENS : '1000'
-      AZURE_OPENAI_STOP_SEQUENCE : '\n'
-      AZURE_OPENAI_SYSTEM_MESSAGE : 'You are an AI assistant that helps people find information.'
-      AZURE_OPENAI_API_VERSION : '2023-07-01-preview'
-      AZURE_OPENAI_STREAM : 'true'
-      AZURE_OPENAI_EMBEDDING_MODEL : embeddingDeploymentName
-      AZURE_FORM_RECOGNIZER_ENDPOINT : 'https://${location}.api.cognitive.microsoft.com/'
-      // AZURE_FORM_RECOGNIZER_KEY : listKeys('Microsoft.CognitiveServices/accounts/${formRecognizer.name}', '2023-05-01').key1
-      AZURE_BLOB_ACCOUNT_NAME : storage.outputs.name
-      // AZURE_BLOB_ACCOUNT_KEY : listKeys('Microsoft.Storages/accounts/${storageAccountName}', '2023-05-01').keys[0].value
-      AZURE_BLOB_CONTAINER_NAME : 'documents'
-      ORCHESTRATION_STRATEGY : 'langchain'
-      AZURE_CONTENT_SAFETY_ENDPOINT: contentsafetyServiceName
-      // AZURE_CONTENT_SAFETY_KEY : listKeys('Microsoft.CognitiveServices/accounts/${ContentSafety.name}', '2023-05-01').key1
-      AZURE_SEARCH_SERVICE: searchService.outputs.name
-      AZURE_SEARCH_QUERY_LANGUAGE: searchQueryLanguage
-      AZURE_SEARCH_QUERY_SPELLER: searchQuerySpeller
-      APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights ? monitoring.outputs.applicationInsightsConnectionString : ''
-      // Shared by all OpenAI deployments
-      OPENAI_HOST: openAiHost
-      AZURE_OPENAI_EMB_MODEL_NAME: embeddingModelName
-      AZURE_OPENAI_CHATGPT_MODEL: chatGptModelName
-      // Used only with non-Azure OpenAI deployments
-      // OPENAI_API_KEY: openAiApiKey
-      OPENAI_ORGANIZATION: openAiApiOrganization
-      // Optional login and document level access control system
-      AZURE_USE_AUTHENTICATION: useAuthentication
-      AZURE_SERVER_APP_ID: serverAppId
-      AZURE_SERVER_APP_SECRET: serverAppSecret
-      AZURE_CLIENT_APP_ID: clientAppId
-      AZURE_TENANT_ID: tenant().tenantId
-      // CORS support, for frontends on other hosts
-      ALLOWED_ORIGIN: allowedOrigin
-    }
-  }
-}
+// The web frontend
+// module frontend 'core/host/appservice.bicep' = {
+//   name: '${environmentName}-website'
+//   scope: resourceGroup
+//   params: {
+//     name: !empty(frontendServiceName) ? frontendServiceName : '${abbrs.webSitesAppService}frontend-${resourceToken}'
+//     location: location
+//     tags: union(tags, { 'azd-service-name': 'frontend' })
+//     appServicePlanId: appServicePlan.outputs.id
+//     runtimeName: 'node'
+//     runtimeVersion: '18-lts'
+//     // linuxFxVersion:WebAppImageName
+//     scmDoBuildDuringDeployment: true
+//     managedIdentity: true
+//     allowedOrigins: [allowedOrigin]
+//     AzureCognitiveSearch:searchService.outputs.name
+//     formRecognizerName:formRecognizer.outputs.name
+//     ContentSafetyName:contentSafety.outputs.name
+//     storageAccountName:storage.outputs.name
+//     openAiName:openAi.outputs.name
+//     appSettings: {
+//       APPINSIGHTS_CONNECTION_STRING: monitoring.outputs.applicationInsightsConnectionString
+//       AZURE_STORAGE_ACCOUNT: storage.outputs.name
+//       AZURE_STORAGE_CONTAINER: storageContainerName
+//       AZURE_SEARCH_INDEX: searchIndexName
+//       AZURE_SEARCH_CONVERSATIONS_LOG_INDEX: 'conversations'
+//       AZURE_SEARCH_USE_SEMANTIC_SEARCH : 'false'
+//       AZURE_SEARCH_SEMANTIC_SEARCH_CONFIG : 'default'
+//       AZURE_SEARCH_INDEX_IS_PRECHUNKED : 'false'
+//       AZURE_SEARCH_TOP_K : '5'
+//       AZURE_SEARCH_ENABLE_IN_DOMAIN : 'false'
+//       AZURE_SEARCH_CONTENT_COLUMNS : 'content'
+//       AZURE_SEARCH_FILENAME_COLUMN : 'filename'
+//       AZURE_SEARCH_TITLE_COLUMN : 'title'
+//       AZURE_SEARCH_URL_COLUMN : 'url'
+//       AZURE_OPENAI_RESOURCE : openAiHost == 'azure' ? openAi.outputs.name : ''
+//       AZURE_OPENAI_KEY : openAiApiKey
+//       AZURE_OPENAI_MODEL : chatGptModelName
+//       AZURE_OPENAI_MODEL_NAME : chatGptModelName
+//       AZURE_OPENAI_TEMPERATURE : '0'
+//       AZURE_OPENAI_TOP_P: '1'
+//       AZURE_OPENAI_MAX_TOKENS : '1000'
+//       AZURE_OPENAI_STOP_SEQUENCE : '\n'
+//       AZURE_OPENAI_SYSTEM_MESSAGE : 'You are an AI assistant that helps people find information.'
+//       AZURE_OPENAI_API_VERSION : '2023-07-01-preview'
+//       AZURE_OPENAI_STREAM : 'true'
+//       AZURE_OPENAI_EMBEDDING_MODEL : embeddingDeploymentName
+//       AZURE_FORM_RECOGNIZER_ENDPOINT : 'https://${location}.api.cognitive.microsoft.com/'
+//       // AZURE_FORM_RECOGNIZER_KEY : listKeys('Microsoft.CognitiveServices/accounts/${formRecognizer.name}', '2023-05-01').key1
+//       AZURE_BLOB_ACCOUNT_NAME : storage.outputs.name
+//       // AZURE_BLOB_ACCOUNT_KEY : listKeys('Microsoft.Storages/accounts/${storageAccountName}', '2023-05-01').keys[0].value
+//       AZURE_BLOB_CONTAINER_NAME : 'documents'
+//       ORCHESTRATION_STRATEGY : 'langchain'
+//       AZURE_CONTENT_SAFETY_ENDPOINT: contentsafetyServiceName
+//       // AZURE_CONTENT_SAFETY_KEY : listKeys('Microsoft.CognitiveServices/accounts/${ContentSafety.name}', '2023-05-01').key1
+//       AZURE_SEARCH_SERVICE: searchService.outputs.name
+//       AZURE_SEARCH_QUERY_LANGUAGE: searchQueryLanguage
+//       AZURE_SEARCH_QUERY_SPELLER: searchQuerySpeller
+//       APPLICATIONINSIGHTS_CONNECTION_STRING: useApplicationInsights ? monitoring.outputs.applicationInsightsConnectionString : ''
+//       // Shared by all OpenAI deployments
+//       OPENAI_HOST: openAiHost
+//       AZURE_OPENAI_EMB_MODEL_NAME: embeddingModelName
+//       AZURE_OPENAI_CHATGPT_MODEL: chatGptModelName
+//       // Used only with non-Azure OpenAI deployments
+//       // OPENAI_API_KEY: openAiApiKey
+//       OPENAI_ORGANIZATION: openAiApiOrganization
+//       // Optional login and document level access control system
+//       AZURE_USE_AUTHENTICATION: useAuthentication
+//       AZURE_SERVER_APP_ID: serverAppId
+//       AZURE_SERVER_APP_SECRET: serverAppSecret
+//       AZURE_CLIENT_APP_ID: clientAppId
+//       AZURE_TENANT_ID: tenant().tenantId
+//       // CORS support, for frontends on other hosts
+//       ALLOWED_ORIGIN: allowedOrigin
+//     }
+//   }
+// }
 
 module openAi 'core/ai/cognitiveservices.bicep' = if (openAiHost == 'azure') {
   name: 'openai'
@@ -622,18 +625,6 @@ module web './app/web.bicep' = {
     storageAccountName:storage.outputs.name
     openAiName:openAi.outputs.name
     env:[
-      // {
-      //   name: 'REACT_APP_APPLICATIONINSIGHTS_CONNECTION_STRING'
-      //   value: applicationInsights.properties.ConnectionString
-      // }
-      // {
-      //   name: 'REACT_APP_API_BASE_URL'
-      //   value: apiBaseUrl
-      // }
-      // {
-      //   name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-      //   value: applicationInsights.properties.ConnectionString
-      // }
       { name: 'APPINSIGHTS_CONNECTION_STRING', value: monitoring.outputs.applicationInsightsConnectionString}
       { name: 'AZURE_SEARCH_SERVICE', value: 'https://${location}.search.windows.net'}
       { name: 'AZURE_SEARCH_INDEX', value: '${environmentName}-index'}
@@ -670,36 +661,7 @@ module web './app/web.bicep' = {
     ]
   }
 }
-
-// Api backend
-param apiAppExists bool = false
-param apiContainerAppName string = ''
-var apiContainerAppNameOrDefault = '${abbrs.appContainerApps}web-${resourceToken}'
-var corsAcaUrl = 'https://${apiContainerAppNameOrDefault}.${containerApps.outputs.defaultDomain}'
-module api './app/api.bicep' = {
-  name: 'api1'
-  scope: resourceGroup
-  params: {
-    name: !empty(apiContainerAppName) ? apiContainerAppName : '${abbrs.appContainerApps}api-${resourceToken}'
-    location: location
-    tags: tags
-    identityName: '${abbrs.managedIdentityUserAssignedIdentities}api-${resourceToken}'
-    applicationInsightsName: monitoring.outputs.applicationInsightsName
-    containerAppsEnvironmentName: containerApps.outputs.environmentName
-    containerRegistryName: containerApps.outputs.registryName
-    keyVaultName: keyVault.outputs.name
-    corsAcaUrl: corsAcaUrl
-    exists: apiAppExists
-    AzureCognitiveSearch:searchService.outputs.name
-    formRecognizerName:formRecognizer.outputs.name
-    ContentSafetyName:contentSafety.outputs.name
-    storageAccountName:storage.outputs.name
-    openAiName:openAi.outputs.name
-  }
-}
-
-param webAdminAppExists bool = false
-param webAdminContainerAppName string = ''
+// WebAdmin 
 module webAdmin './app/webAdmin.bicep' = {
   name: 'webadmin'
   scope: resourceGroup
@@ -717,18 +679,6 @@ module webAdmin './app/webAdmin.bicep' = {
     storageAccountName:storage.outputs.name
     openAiName:openAi.outputs.name
     env:[
-      // {
-      //   name: 'REACT_APP_APPLICATIONINSIGHTS_CONNECTION_STRING'
-      //   value: applicationInsights.properties.ConnectionString
-      // }
-      // {
-      //   name: 'REACT_APP_API_BASE_URL'
-      //   value: apiBaseUrl
-      // }
-      // {
-      //   name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-      //   value: applicationInsights.properties.ConnectionString
-      // }
       { name: 'APPINSIGHTS_CONNECTION_STRING', value: monitoring.outputs.applicationInsightsConnectionString}
       { name: 'AZURE_SEARCH_SERVICE', value: 'https://${location}.search.windows.net'}
       { name: 'AZURE_SEARCH_INDEX', value: '${environmentName}-index'}
@@ -767,7 +717,6 @@ module webAdmin './app/webAdmin.bicep' = {
   }
 }
 // Store secrets in a keyvault
-param keyVaultName string = ''
 module keyVault './core/security/keyvault.bicep' = {
   name: 'keyvault'
   scope: resourceGroup
@@ -811,6 +760,4 @@ output AZURE_CONTAINER_REGISTRY_NAME string = containerApps.outputs.registryName
 output AZURE_KEY_VAULT_ENDPOINT string = keyVault.outputs.endpoint
 output AZURE_KEY_VAULT_NAME string = keyVault.outputs.name
 output REACT_APP_APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
-output REACT_APP_WEB_BASE_URL string = web.outputs.SERVICE_WEB_URI
 
-// output BACKEND_URI string = backend.outputs.uri
