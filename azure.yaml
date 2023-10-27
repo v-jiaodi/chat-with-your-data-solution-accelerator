@@ -4,19 +4,15 @@ name: chat-with-your-data-solution-accelerator
 metadata:
   template: chat-with-your-data-solution-accelerator@0.0.2-beta
 services:
-  backend:
+  webadmin:
+    project: ./backend
+    language: py
+    host: appservice
+  frontend:
+    project: ./backend
+    language: js
+    host: appservice
+  function:
     project: ./backend
     language: py
     host: function
-  web:
-    project: ./
-    docker:
-      path: docker/WebApp.Dockerfile
-    language: js
-    host: containerapp
-  webadmin:
-    project: ./
-    docker:
-      path: docker/AdminWebApp.Dockerfile
-    language: py
-    host: containerapp
