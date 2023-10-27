@@ -109,7 +109,7 @@ Then bring down the project code:
 
 1. Create a new folder and switch to it in the terminal
 1. Run `azd auth login`
-1. Run `azd init -t azure-search-openai-demo`
+1. Run `azd init -t chat-with-your-data-solution-accelerator`
     * note that this command will initialize a git repository and you do not need to clone this repository
 
 ### Deploying from scratch
@@ -124,7 +124,7 @@ It will look like the following:
 
 !['Output from running azd up'](docs/endpoint.png)
 
-> NOTE: It may take 5-10 minutes for the application to be fully deployed. If you see a "Python Developer" welcome screen or an error page, then wait a bit and refresh the page.
+> NOTE: It may take 5-10 minutes for the application to be fully deployed.
 
 ### Deploying with existing Azure resources
 
@@ -187,7 +187,7 @@ That will both provision resources and deploy the code.
 
 ### Deploying again
 
-If you've only changed the backend/frontend code in the `app` folder, then you don't need to re-provision the Azure resources. You can just run:
+If you've only changed the backend/frontend code, then you don't need to re-provision the Azure resources. You can just run:
 
 ```azd deploy```
 
